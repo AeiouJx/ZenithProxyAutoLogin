@@ -23,8 +23,6 @@ zenithProxyPlugin {
     }
     // the minimum supported java version for users of your plugin
     javaReleaseVersion = JavaLanguageVersion.of(21)
-    // set to false if developing against a zenith version before 3.7.0
-    runTaskMixinLauncher = true
 }
 
 repositories {
@@ -52,6 +50,7 @@ dependencies {
 
 tasks {
     shadowJar {
+        archiveBaseName.set("${project.name}-$mc")
         /**
          * relocate shaded dependencies to avoid conflicts with other plugins
          * transitive dependencies should also be relocated or removed (with exclude)

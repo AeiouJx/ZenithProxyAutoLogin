@@ -45,6 +45,10 @@ public class AutoLoginCommand extends Command {
                 "trigger remove <keyword>",
                 "trigger list",
                 "trigger reset",
+                "success add <keyword>",
+                "success remove <keyword>",
+                "success list",
+                "success reset",
                 "clear",
                 "clear <username>"
             )
@@ -114,6 +118,7 @@ public class AutoLoginCommand extends Command {
                     synchronized (PLUGIN_CONFIG) {
                         PLUGIN_CONFIG.loginTriggers = AutoLoginConfig.defaultLoginTriggers();
                         PLUGIN_CONFIG.registerTriggers = AutoLoginConfig.defaultRegisterTriggers();
+                        PLUGIN_CONFIG.successTriggers = AutoLoginConfig.defaultSuccessTriggers();
                     }
                     c.getSource().getEmbed()
                         .title("Triggers Reset")
@@ -135,17 +140,43 @@ public class AutoLoginCommand extends Command {
                     return addTrigger(c, PLUGIN_CONFIG.loginTriggers, "Login");
                 })))
                 .then(literal("remove").then(argument("keyword", greedyString()).executes(c -> {
-                    return removeTrigger(c, List.of(PLUGIN_CONFIG.loginTriggers, PLUGIN_CONFIG.registerTriggers), "Trigger");
+                    return removeTrigger(c, List.of(
+                        PLUGIN_CONFIG.loginTriggers,
+                        PLUGIN_CONFIG.registerTriggers,
+                        PLUGIN_CONFIG.successTriggers
+                    ), "Trigger");
                 })))
                 .then(literal("clear").executes(c -> {
                     synchronized (PLUGIN_CONFIG) {
                         PLUGIN_CONFIG.loginTriggers.clear();
                         PLUGIN_CONFIG.registerTriggers.clear();
+                        PLUGIN_CONFIG.successTriggers.clear();
                     }
                     c.getSource().getEmbed()
                         .title("Triggers Cleared")
                         .description("No trigger keywords left, AutoLogin will stay silent.");
                 })))
+            .then(literal("success")
+                .then(literal("list").executes(c -> {
+                    c.getSource().getEmbed()
+                        .title("Success Triggers")
+                        .description("`" + String.join("` `", normalized(PLUGIN_CONFIG.successTriggers)) + "`"
+                            + "\nA message matching one of these is never treated as a prompt.");
+                }))
+                .then(literal("reset").executes(c -> {
+                    synchronized (PLUGIN_CONFIG) {
+                        PLUGIN_CONFIG.successTriggers = AutoLoginConfig.defaultSuccessTriggers();
+                    }
+                    c.getSource().getEmbed()
+                        .title("Success Triggers Reset")
+                        .description("`" + String.join("` `", normalized(PLUGIN_CONFIG.successTriggers)) + "`");
+                }))
+                .then(literal("add").then(argument("keyword", greedyString()).executes(c -> {
+                    return addTrigger(c, PLUGIN_CONFIG.successTriggers, "Success");
+                })))
+                .then(literal("remove").then(argument("keyword", greedyString()).executes(c -> {
+                    return removeTrigger(c, List.of(PLUGIN_CONFIG.successTriggers), "Success");
+                }))))
             .then(literal("clear")
                 .then(argument("username", string()).executes(c -> {
                     final String username = getString(c, "username").trim();
@@ -226,12 +257,15 @@ public class AutoLoginCommand extends Command {
     private static String triggerSummary() {
         final List<String> login;
         final List<String> register;
+        final List<String> success;
         synchronized (PLUGIN_CONFIG) {
             login = normalized(PLUGIN_CONFIG.loginTriggers);
             register = normalized(PLUGIN_CONFIG.registerTriggers);
+            success = normalized(PLUGIN_CONFIG.successTriggers);
         }
         return "**Login**\n" + formatKeywords(login)
             + "\n**Register**\n" + formatKeywords(register)
+            + "\n**Success**\n" + formatKeywords(success)
             + "\nCase-insensitive substring match against server messages.";
     }
 
@@ -249,10 +283,12 @@ public class AutoLoginCommand extends Command {
         final boolean storedPassword;
         final int loginCount;
         final int registerCount;
+        final int successCount;
         synchronized (PLUGIN_CONFIG) {
             storedPassword = PLUGIN_CONFIG.credentials.containsKey(username.toLowerCase(Locale.ROOT));
             loginCount = normalized(PLUGIN_CONFIG.loginTriggers).size();
             registerCount = normalized(PLUGIN_CONFIG.registerTriggers).size();
+            successCount = normalized(PLUGIN_CONFIG.successTriggers).size();
         }
         embed
             .primaryColor()
@@ -266,6 +302,6 @@ public class AutoLoginCommand extends Command {
             .addField("Scope", PLUGIN_CONFIG.serverWhitelist.isEmpty()
                 ? "all servers"
                 : String.join(", ", PLUGIN_CONFIG.serverWhitelist))
-            .addField("Triggers", loginCount + " login / " + registerCount + " register");
-    }
-}
+            .addField("Triggers", loginCount + " login / " + registerCount + " register"
+                + " / " + successCount + " success");
+    }}

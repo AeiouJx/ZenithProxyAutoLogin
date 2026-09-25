@@ -39,12 +39,17 @@ import static dev.zenith.autologin.AutoLoginPlugin.PLUGIN_CONFIG;
  * the chat events are skipped for action bar packets and depend on chat schema
  * parsing, while the raw packet layer sees every message. The attempt limiter
  * keeps the overlap from turning into duplicate commands.
+ *
+ * <p>Accepted logins are detected too. Without that the only evidence the
+ * plugin worked is the absence of a kick, which is exactly the kind of silence
+ * that hides a misconfigured trigger keyword.
  */
 public class AutoLogin extends Module {
 
     private enum Action {
         REGISTER,
-        LOGIN
+        LOGIN,
+        SUCCESS
     }
 
     private final Object responseLock = new Object();
@@ -130,6 +135,10 @@ public class AutoLogin extends Module {
 
         final Action action = matchAction(trimmed);
         if (action == null) return;
+        if (action == Action.SUCCESS) {
+            onAuthenticated();
+            return;
+        }
 
         if (!isCurrentServerAllowed()) {
             debug("Prompt on out of scope server {}, ignoring. Whitelist: {}",
@@ -167,9 +176,23 @@ public class AutoLogin extends Module {
         sendClientPacketAsync(new ServerboundChatPacket(ChatUtil.sanitizeChatMessage(command)));
     }
 
+    /**
+     * The server accepted our credentials. This is the only positive
+     * confirmation the plugin can get, and it is what turns a silent failure
+     * into a visible one. The attempt budget is handed back so a later
+     * re-authentication on the same connection starts fresh.
+     */
+    private void onAuthenticated() {
+        info("Authentication succeeded on {}", CONFIG.client.server.address);
+        resetAttempts("authenticated");
+    }
+
     private Action matchAction(final String text) {
         final String lowerCase = text.toLowerCase(Locale.ROOT);
         synchronized (PLUGIN_CONFIG) {
+            // checked first: a loose login keyword would otherwise match the
+            // success line itself and answer a login that already succeeded
+            if (containsAny(lowerCase, PLUGIN_CONFIG.successTriggers)) return Action.SUCCESS;
             final boolean register = containsAny(lowerCase, PLUGIN_CONFIG.registerTriggers);
             final boolean login = containsAny(lowerCase, PLUGIN_CONFIG.loginTriggers);
             if (register && PLUGIN_CONFIG.autoRegister) return Action.REGISTER;

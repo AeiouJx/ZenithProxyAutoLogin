@@ -71,6 +71,14 @@ public class AutoLoginConfig {
     public List<String> registerTriggers = defaultRegisterTriggers();
 
     /**
+     * Case-insensitive substrings that identify an accepted login.
+     * A message matching one of these is never treated as an auth prompt,
+     * which also stops a loose keyword from firing on the success line
+     * itself, i.e. {@code 登录} matching {@code 成功登录！}.
+     */
+    public List<String> successTriggers = defaultSuccessTriggers();
+
+    /**
      * Responses allowed per connection before the plugin gives up, so a server
      * that keeps nagging cannot spam commands into a kick.
      */
@@ -106,5 +114,13 @@ public class AutoLoginConfig {
 
     public static List<String> defaultRegisterTriggers() {
         return new ArrayList<>(List.of("/register"));
+    }
+
+    public static List<String> defaultSuccessTriggers() {
+        return new ArrayList<>(List.of(
+            "成功登录",
+            "successfully logged in",
+            "logged in successfully"
+        ));
     }
 }

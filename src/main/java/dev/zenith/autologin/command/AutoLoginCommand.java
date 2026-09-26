@@ -19,6 +19,7 @@ import static com.zenith.Globals.CONFIG;
 import static com.zenith.Globals.MODULE;
 import static com.zenith.command.brigadier.ToggleArgumentType.getToggle;
 import static com.zenith.command.brigadier.ToggleArgumentType.toggle;
+import static com.zenith.util.config.Config.Authentication.AccountType.OFFLINE;
 import static dev.zenith.autologin.AutoLoginPlugin.PLUGIN_CONFIG;
 
 public class AutoLoginCommand extends Command {
@@ -273,6 +274,39 @@ public class AutoLoginCommand extends Command {
         return keywords.isEmpty() ? "_none_" : keywords.stream().map(k -> "`" + k + "`").reduce((a, b) -> a + " " + b).orElse("_none_");
     }
 
+    /**
+     * {@code offlineAuthOnly} silently gates every response, so a mismatched
+     * account type has to be visible here instead of only in the debug log.
+     */
+    private static String accountTypeSummary() {
+        final boolean offlineOnly;
+        synchronized (PLUGIN_CONFIG) {
+            offlineOnly = PLUGIN_CONFIG.offlineAuthOnly;
+        }
+        final String type = String.valueOf(CONFIG.authentication.accountType);
+        if (!offlineOnly) return type + " (any allowed)";
+        return CONFIG.authentication.accountType == OFFLINE
+            ? type
+            : type + " — blocked, offlineAuthOnly is on";
+    }
+
+    /**
+     * The blacklist takes part in matching but was missing from the status
+     * embed, so a scoped setup could not be confirmed from the panel.
+     */
+    private static String scopeSummary() {
+        final List<String> whitelist;
+        final List<String> blacklist;
+        synchronized (PLUGIN_CONFIG) {
+            whitelist = PLUGIN_CONFIG.serverWhitelist.stream()
+                .filter(rule -> rule != null && !rule.isBlank()).toList();
+            blacklist = PLUGIN_CONFIG.serverBlacklist.stream()
+                .filter(rule -> rule != null && !rule.isBlank()).toList();
+        }
+        final String allow = whitelist.isEmpty() ? "all servers" : String.join(", ", whitelist);
+        return blacklist.isEmpty() ? allow : allow + "\nminus " + String.join(", ", blacklist);
+    }
+
     private static String currentUsername() {
         return CONFIG.authentication.username;
     }
@@ -299,9 +333,10 @@ public class AutoLoginCommand extends Command {
             .addField("Password", storedPassword ? "stored (hidden)"
                 : CONFIG.authentication.password.isBlank() ? "not set" : "account password")
             .addField("Server", CONFIG.client.server.address)
-            .addField("Scope", PLUGIN_CONFIG.serverWhitelist.isEmpty()
-                ? "all servers"
-                : String.join(", ", PLUGIN_CONFIG.serverWhitelist))
+            .addField("Account Type", accountTypeSummary())
+            .addField("Scope", scopeSummary())
             .addField("Triggers", loginCount + " login / " + registerCount + " register"
                 + " / " + successCount + " success");
-    }}
+    }
+}
+

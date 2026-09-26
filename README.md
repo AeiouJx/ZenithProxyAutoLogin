@@ -243,6 +243,11 @@ up. Run those three commands yourself once and the server stops asking.
 
 `plugins/config/autologin.json`, created on first launch:
 
+ZenithProxy writes plugin configs when the proxy shuts down, so a brand new
+install has no file on disk yet and runs entirely on the defaults below. Stop
+the proxy once to materialise it, then edit it while the proxy is stopped.
+Running `autoLogin` shows the live values.
+
 | Field | Default | Description |
 |---|---|---|
 | `enabled` | `true` | plugin on/off |
